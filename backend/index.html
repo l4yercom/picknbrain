@@ -1,0 +1,545 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Pick N Brain</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Luckiest+Guy&family=Inter:wght@400;600;700&display=swap" rel="stylesheet">
+    <style>
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: #a5f3fc; /* a light cyan/sky color */
+        }
+        .app-title, .button-style {
+            font-family: 'Luckiest Guy', cursive;
+            letter-spacing: 1px;
+        }
+        .app-title {
+            text-shadow: 3px 3px 0px #f97316; /* Orange shadow */
+        }
+        .card-container {
+            perspective: 1000px;
+        }
+        .card-flip {
+            position: relative;
+            transform-style: preserve-3d;
+            transition: transform 0.6s;
+        }
+        .card-flip.flipped {
+            transform: rotateY(180deg);
+        }
+        .card-front, .card-back {
+            -webkit-backface-visibility: hidden;
+            backface-visibility: hidden;
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+        }
+        .card-back {
+            transform: rotateY(180deg);
+        }
+        .loader {
+            border: 4px solid #dbeafe;
+            border-top: 4px solid #2563eb;
+            border-radius: 50%;
+            width: 50px;
+            height: 50px;
+            animation: spin 1s linear infinite;
+        }
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+    </style>
+</head>
+<body class="flex items-center justify-center min-h-screen p-4">
+
+    <div id="app-container" class="w-full max-w-2xl mx-auto">
+
+        <!-- Pantalla de Inicio -->
+        <div id="start-screen" class="text-center p-8 bg-white/80 backdrop-blur-sm rounded-2xl shadow-2xl border-4 border-white">
+            <h1 class="app-title text-6xl md:text-7xl text-blue-600 mb-8">Pick N Brain</h1>
+            <div class="mb-8">
+                <label for="num-players-input" class="block text-slate-700 font-bold text-xl mb-2">Número de Jugadores:</label>
+                <input type="number" id="num-players-input" value="1" min="1" max="4" class="w-32 text-center text-2xl font-bold p-2 border-4 border-blue-300 rounded-lg focus:ring-4 focus:ring-orange-400 focus:outline-none">
+            </div>
+            <button id="init-game-btn" class="button-style bg-orange-500 hover:bg-orange-600 text-white py-4 px-10 rounded-full text-2xl shadow-lg transition-transform transform hover:scale-105">
+                Iniciar Juego
+            </button>
+        </div>
+        
+        <!-- Pantalla de Nombres -->
+        <div id="name-screen" class="hidden text-center p-8 bg-white/80 backdrop-blur-sm rounded-2xl shadow-2xl border-4 border-white">
+            <h2 class="text-3xl font-bold text-blue-800 mb-6">¿Quiénes van a jugar?</h2>
+            <div id="name-inputs-container" class="space-y-4 mb-8">
+                <!-- Inputs se generan aquí -->
+            </div>
+            <button id="start-game-btn" class="button-style bg-orange-500 hover:bg-orange-600 text-white py-4 px-10 rounded-full text-2xl shadow-lg transition-transform transform hover:scale-105">
+                ¡A Jugar!
+            </button>
+        </div>
+
+        <!-- Pantalla de Juego -->
+        <div id="game-screen" class="hidden">
+             <div class="bg-white/80 backdrop-blur-sm rounded-2xl shadow-2xl border-4 border-white p-4 sm:p-6">
+                <div id="player-scores" class="flex justify-center gap-4 mb-4 text-slate-700 flex-wrap">
+                   <!-- Marcadores de jugadores -->
+                </div>
+                <h2 id="turn-indicator" class="text-center text-3xl font-bold text-orange-600 mb-2"></h2>
+                <h3 class="text-center text-xl font-bold text-slate-600 mb-4">Ronda <span id="round-counter">1 / 5</span></h3>
+
+
+                <!-- Temporizador -->
+                <div class="w-full bg-blue-200 rounded-full h-4 mb-4 overflow-hidden border border-blue-300">
+                    <div id="timer-bar" class="bg-gradient-to-r from-yellow-300 to-orange-500 h-full rounded-full transition-all duration-1000 linear"></div>
+                </div>
+                
+                <div class="card-container h-[350px] md:h-[400px]">
+                    <div id="card-flip" class="w-full h-full card-flip">
+                        <!-- Frente de la tarjeta (Imagen) -->
+                        <div id="card-front" class="card-front bg-white rounded-xl p-4 flex flex-col items-center justify-center border-4 border-blue-400">
+                            <!-- Estado de Carga -->
+                            <div id="loading-state" class="text-center text-slate-600">
+                                <div class="loader mx-auto"></div>
+                                <p class="mt-4 text-lg font-semibold">Creando una escena...</p>
+                            </div>
+                            <!-- Contenido de la Tarjeta -->
+                            <div id="card-content" class="hidden w-full h-full">
+                               <img id="card-image" src="" alt="Imagen generada por IA" class="w-full h-full object-contain rounded-lg">
+                            </div>
+                        </div>
+
+                        <!-- Dorso de la tarjeta (Pregunta) -->
+                        <div id="card-back" class="card-back bg-white rounded-xl p-6 flex flex-col justify-center items-center border-4 border-blue-400">
+                            <div id="question-area" class="w-full text-center">
+                                <p id="question-text" class="text-2xl md:text-3xl font-bold text-slate-800 mb-6"></p>
+                                <div id="text-answer-area" class="flex flex-col sm:flex-row items-center justify-center gap-2 w-full max-w-md mx-auto">
+                                    <input type="text" id="answer-input" class="w-full sm:flex-grow border-4 border-blue-300 rounded-full p-3 text-lg focus:ring-4 focus:ring-orange-400 focus:outline-none" placeholder="Escribe tu respuesta...">
+                                    <button id="submit-answer-btn" class="button-style w-full mt-2 sm:mt-0 sm:w-auto bg-orange-500 hover:bg-orange-600 text-white py-3 px-6 rounded-full text-xl transition-colors">Enviar</button>
+                                </div>
+                                <div id="feedback-message" class="mt-6 text-2xl font-bold h-8"></div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+             </div>
+             <button id="next-btn" class="button-style hidden mt-6 w-full bg-blue-500 hover:bg-blue-600 text-white py-3 px-6 rounded-full text-xl shadow-lg transition-transform transform hover:scale-105">
+                Siguiente Turno
+            </button>
+        </div>
+
+        <!-- Pantalla Final -->
+        <div id="end-screen" class="hidden text-center p-8 bg-white/80 backdrop-blur-sm rounded-2xl shadow-2xl border-4 border-white">
+            <h1 class="app-title text-5xl md:text-6xl text-blue-600 mb-4">¡Juego Terminado!</h1>
+            <h2 id="winner-declaration" class="text-3xl font-bold text-orange-600 mb-6"></h2>
+            <div id="final-scores-container" class="space-y-2 text-2xl text-slate-700 font-bold mb-8">
+                <!-- Puntajes Finales -->
+            </div>
+            <button id="restart-btn" class="button-style bg-orange-500 hover:bg-orange-600 text-white py-4 px-10 rounded-full text-2xl shadow-lg transition-transform transform hover:scale-105">
+                Jugar de Nuevo
+            </button>
+        </div>
+    </div>
+
+    <script>
+        // --- ELEMENTOS DE LA UI ---
+        const startScreen = document.getElementById('start-screen');
+        const nameScreen = document.getElementById('name-screen');
+        const gameScreen = document.getElementById('game-screen');
+        const endScreen = document.getElementById('end-screen');
+        
+        const initGameBtn = document.getElementById('init-game-btn');
+        const numPlayersInput = document.getElementById('num-players-input');
+        const nameInputsContainer = document.getElementById('name-inputs-container');
+        const startGameBtn = document.getElementById('start-game-btn');
+        
+        const restartBtn = document.getElementById('restart-btn');
+        const nextBtn = document.getElementById('next-btn');
+        
+        const roundCounterEl = document.getElementById('round-counter');
+        const playerScoresEl = document.getElementById('player-scores');
+        const turnIndicatorEl = document.getElementById('turn-indicator');
+        const finalScoresContainer = document.getElementById('final-scores-container');
+        const winnerDeclarationEl = document.getElementById('winner-declaration');
+        
+        const timerBar = document.getElementById('timer-bar');
+        const cardFlip = document.getElementById('card-flip');
+        const cardImage = document.getElementById('card-image');
+        const questionText = document.getElementById('question-text');
+        const feedbackMessage = document.getElementById('feedback-message');
+        const loadingState = document.getElementById('loading-state');
+        const cardContent = document.getElementById('card-content');
+        const answerInput = document.getElementById('answer-input');
+        const submitAnswerBtn = document.getElementById('submit-answer-btn');
+        
+        // --- ESTADO DEL JUEGO ---
+        let players = [];
+        let currentPlayerIndex = 0;
+        let currentRound = 1;
+        let timer;
+        let currentCardData = null;
+        let preloadedCard = null;
+        let isPreloading = false;
+        const TOTAL_ROUNDS = 5;
+        const TOTAL_TIME = 15;
+        let sessionToken = null;
+        const BACKEND_URL = '';
+
+        const characterList = [
+            "Mickey Mouse", "Bob Esponja", "Pikachu", "Elsa de Frozen", "Buzz Lightyear", "Shrek", "Spider-Man", "Peppa Pig", "Winnie the Pooh", "Un Minion", "Mario Bros", "Sonic the Hedgehog", "Dora la Exploradora", "Goku de Dragon Ball", "Hello Kitty", "Rayo McQueen", "Woody de Toy Story", "Simba de El Rey León", "Stitch", "Olaf de Frozen", "Chase de Paw Patrol", "Bluey", "Pocoyó", "Naruto", "Iron Man", "Capitán América", "Hulk", "Batman", "Superman", "La Mujer Maravilla", "Harry Potter", "Hermione Granger", "Snoopy", "Garfield", "Bugs Bunny", "El Pato Lucas", "Tom y Jerry", "Scooby-Doo", "Popeye el Marino", "He-Man", "She-Ra", "Optimus Prime", "Megatron", "Leonardo de las Tortugas Ninja", "Donatello de las Tortugas Ninja", "Bart Simpson", "Homero Simpson", "Darth Vader", "Yoda", "Chewbacca"
+        ];
+
+        const actionList = [
+            "jugando al fútbol", "comiendo una pizza gigante", "bailando en una fiesta", "leyendo un libro mágico", "construyendo un castillo de arena", "volando una cometa", "pintando un cuadro", "tocando la guitarra eléctrica", "cantando en un escenario", "haciendo un truco de magia", "cocinando galletas", "explorando una cueva misteriosa", "navegando en un barco pirata", "descubriendo un tesoro"
+        ];
+        
+        // --- LÓGICA DE LA API DE GEMINI ---
+        async function fetchWithBackoff(url, options, maxRetries = 3) { 
+            let attempt = 0;
+            while (attempt < maxRetries) {
+                try {
+                    const response = await fetch(url, options);
+                    if (!response.ok) {
+                        const errorBody = await response.text();
+                        console.error(`API Error Response: ${response.status}`, errorBody);
+                        throw new Error(`HTTP error! status: ${response.status}`);
+                    }
+                    return await response.json();
+                } catch (error) {
+                    attempt++;
+                    if (attempt >= maxRetries) {
+                        console.error("Max retries reached. Failing.", error);
+                        throw error;
+                    }
+                    const delay = Math.pow(2, attempt) * 1000;
+                    console.warn(`Attempt ${attempt} failed. Retrying in ${delay}ms...`);
+                    await new Promise(resolve => setTimeout(resolve, delay));
+                }
+            }
+        }
+        async function generateImage(prompt) {
+            const result = await fetchWithBackoff(`${BACKEND_URL}/api/game/generate-scene`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Authorization': `Bearer ${sessionToken}`
+                },
+                body: JSON.stringify({ scenePrompt: prompt })
+            });
+            return result.sceneImage;
+        }
+
+        async function generateContentFromImage(base64ImageData) {
+            const result = await fetchWithBackoff(`${BACKEND_URL}/api/game/analyze-scene`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Authorization': `Bearer ${sessionToken}`
+                },
+                body: JSON.stringify({ sceneData: base64ImageData })
+            });
+            return { question: result.challenge, answer: result.solution };
+        }
+
+        async function validateAnswerWithAI(question, correctAnswer, userAnswer) {
+            const result = await fetchWithBackoff(`${BACKEND_URL}/api/game/validate-challenge`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Authorization': `Bearer ${sessionToken}`
+                },
+                body: JSON.stringify({
+                    challenge: question,
+                    solution: correctAnswer,
+                    playerResponse: userAnswer
+                })
+            });
+            return result.correct ? 'si' : 'no';
+        }
+
+        // --- LÓGICA DEL JUEGO ---
+
+        function generateScenePrompt() {
+            const numChars = Math.random() < 0.6 ? 1 : 2; // 60% de probabilidad de 1 personaje
+            let selectedChars = [];
+            let prompt = '';
+            let tempList = [...characterList];
+
+            for (let i = 0; i < numChars; i++) {
+                const charIndex = Math.floor(Math.random() * tempList.length);
+                selectedChars.push(tempList.splice(charIndex, 1)[0]);
+            }
+
+            const action = actionList[Math.floor(Math.random() * actionList.length)];
+            
+            if (numChars === 1) {
+                prompt = `${selectedChars[0]} ${action}`;
+            } else {
+                prompt = `${selectedChars[0]} y ${selectedChars[1]} ${action}`;
+            }
+            
+            return `${prompt}, en un brillante y colorido estilo de dibujo animado para niños.`;
+        }
+
+        async function preloadNextCard() {
+            if (isPreloading) return;
+            isPreloading = true;
+            try {
+                const scenePrompt = generateScenePrompt();
+                const imageBase64 = await generateImage(scenePrompt);
+                const content = await generateContentFromImage(imageBase64);
+                preloadedCard = { imageBase64, content };
+            } catch (error) {
+                console.error("Error preloading next card:", error);
+                preloadedCard = { error: true };
+            } finally {
+                isPreloading = false;
+            }
+        }
+
+
+        function setupNameInputs(num) {
+            nameInputsContainer.innerHTML = '';
+            for (let i = 1; i <= num; i++) {
+                const input = document.createElement('input');
+                input.type = 'text';
+                input.placeholder = `Nombre Jugador ${i}`;
+                input.className = 'w-full max-w-sm mx-auto text-center text-xl font-bold p-2 border-4 border-blue-300 rounded-lg focus:ring-4 focus:ring-orange-400 focus:outline-none';
+                nameInputsContainer.appendChild(input);
+            }
+        }
+
+        function startGame() {
+            gameScreen.classList.remove('hidden');
+            currentPlayerIndex = 0;
+            currentRound = 1;
+            players.forEach(p => p.score = 0);
+            updatePlayerScoresUI();
+            generateAndDisplayCard();
+        }
+
+        async function generateAndDisplayCard() {
+            resetCard();
+            roundCounterEl.textContent = `${currentRound} / ${TOTAL_ROUNDS}`;
+            turnIndicatorEl.textContent = `Turno de: ${players[currentPlayerIndex].name}`;
+            
+            if (preloadedCard && !preloadedCard.error) {
+                // Usar datos precargados
+                cardImage.src = `data:image/png;base64,${preloadedCard.imageBase64}`;
+                currentCardData = preloadedCard.content;
+                questionText.textContent = currentCardData.question;
+                loadingState.classList.add('hidden');
+                cardContent.classList.remove('hidden');
+                startTimer();
+                preloadedCard = null;
+            } else {
+                // Generar la primera tarjeta o si la precarga falló
+                try {
+                    const scenePrompt = generateScenePrompt();
+                    const imageBase64 = await generateImage(scenePrompt);
+                    cardImage.src = `data:image/png;base64,${imageBase64}`;
+                    const content = await generateContentFromImage(imageBase64);
+                    currentCardData = content;
+                    questionText.textContent = content.question;
+
+                    loadingState.classList.add('hidden');
+                    cardContent.classList.remove('hidden');
+                    startTimer();
+                } catch(error) {
+                    console.error("Error generating card:", error);
+                    loadingState.innerHTML = `<p class="text-red-500">Error al generar la tarjeta. Intenta recargar la página.</p>`;
+                    return;
+                }
+            }
+            
+            // Precargar la siguiente tarjeta, si no es el último turno del juego
+            const isLastTurnOfGame = (currentRound === TOTAL_ROUNDS) && (currentPlayerIndex === players.length - 1);
+            if (!isLastTurnOfGame) {
+                preloadNextCard();
+            }
+        }
+        
+        function startTimer() {
+            let timeLeft = TOTAL_TIME;
+            timerBar.style.width = '100%';
+
+            timer = setInterval(() => {
+                timeLeft--;
+                const percentageLeft = (timeLeft / TOTAL_TIME) * 100;
+                timerBar.style.width = `${percentageLeft}%`;
+                if (timeLeft <= 0) {
+                    clearInterval(timer);
+                    showQuestion();
+                }
+            }, 1000);
+        }
+        
+        function showQuestion() {
+            clearInterval(timer);
+            cardFlip.classList.add('flipped');
+        }
+
+        async function handleAnswer() {
+            const userAnswer = answerInput.value.trim();
+            if (!userAnswer) {
+                feedbackMessage.textContent = "¡Escribe algo!";
+                feedbackMessage.style.color = '#f97316'; // orange-500
+                return;
+            }
+
+            clearInterval(timer);
+            showQuestion();
+
+            answerInput.disabled = true;
+            submitAnswerBtn.disabled = true;
+            feedbackMessage.textContent = "Revisando...";
+            feedbackMessage.style.color = '#64748b'; // slate-500
+
+            try {
+                const validationResult = await validateAnswerWithAI(currentCardData.question, currentCardData.answer, userAnswer);
+
+                if (validationResult === 'si') {
+                    players[currentPlayerIndex].score++;
+                    feedbackMessage.textContent = "¡Correcto!";
+                    feedbackMessage.style.color = '#22c55e'; // green-500
+                } else {
+                    feedbackMessage.textContent = `Era: ${currentCardData.answer}`;
+                    feedbackMessage.style.color = '#ef4444'; // red-500
+                }
+            } catch (error) {
+                 console.error("Error validating answer:", error);
+                 feedbackMessage.textContent = "Error al validar";
+                 feedbackMessage.style.color = '#ef4444';
+            }
+
+            updatePlayerScoresUI();
+            nextBtn.classList.remove('hidden');
+        }
+
+        function updatePlayerScoresUI() {
+            playerScoresEl.innerHTML = '';
+            players.forEach((player, index) => {
+                const scoreDiv = document.createElement('div');
+                scoreDiv.className = `p-2 rounded-lg font-bold transition-all ${index === currentPlayerIndex ? 'bg-orange-500 text-white shadow-md' : 'bg-blue-100 text-blue-800'}`;
+                scoreDiv.innerHTML = `${player.name}: <span class="ml-2">${player.score}</span>`;
+                playerScoresEl.appendChild(scoreDiv);
+            });
+        }
+        
+        function resetCard() {
+            cardFlip.classList.remove('flipped');
+            feedbackMessage.textContent = '';
+            nextBtn.classList.add('hidden');
+            loadingState.classList.remove('hidden');
+            cardContent.classList.add('hidden');
+            currentCardData = null;
+            answerInput.value = '';
+            answerInput.disabled = false;
+            submitAnswerBtn.disabled = false;
+        }
+
+        function endGame() {
+            gameScreen.classList.add('hidden');
+            endScreen.classList.remove('hidden');
+            
+            finalScoresContainer.innerHTML = '';
+            players.sort((a, b) => b.score - a.score);
+            
+            const highScore = players[0].score;
+            const winners = players.filter(p => p.score === highScore);
+
+            if (winners.length > 1) {
+                winnerDeclarationEl.textContent = '¡Es un empate!';
+            } else {
+                winnerDeclarationEl.textContent = `¡Ganador: ${winners[0].name}!`;
+            }
+
+            players.forEach(player => {
+                const scoreEntry = document.createElement('div');
+                scoreEntry.innerHTML = `${player.name}: <span class="ml-2">${player.score} puntos</span>`;
+                finalScoresContainer.appendChild(scoreEntry);
+            });
+        }
+
+        // --- EVENT LISTENERS ---
+        initGameBtn.addEventListener('click', () => {
+            const numPlayers = parseInt(numPlayersInput.value);
+            if (numPlayers > 0 && numPlayers <= 4) {
+                setupNameInputs(numPlayers);
+                startScreen.classList.add('hidden');
+                nameScreen.classList.remove('hidden');
+            }
+        });
+        
+        startGameBtn.addEventListener('click', async () => {
+            const nameInputs = nameInputsContainer.querySelectorAll('input');
+            players = [];
+            let allNamesValid = true;
+            nameInputs.forEach((input, index) => {
+                const name = input.value.trim();
+                if (name) {
+                    players.push({ name: name, score: 0 });
+                } else {
+                    allNamesValid = false;
+                }
+            });
+
+            if (allNamesValid && players.length > 0) {
+                try {
+                    // Initialize session
+                    const sessionResponse = await fetch(`${BACKEND_URL}/api/game/start-session`, {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' }
+                    });
+                    if (!sessionResponse.ok) {
+                        throw new Error('Failed to start session');
+                    }
+                    const sessionData = await sessionResponse.json();
+                    sessionToken = sessionData.sessionToken;
+
+                    nameScreen.classList.add('hidden');
+                    startGame();
+                } catch (error) {
+                    console.error('Error starting session:', error);
+                    alert('Error al iniciar la sesión. Intenta recargar la página.');
+                }
+            } else {
+                alert("Por favor, ingresa un nombre para cada jugador.");
+            }
+        });
+
+        restartBtn.addEventListener('click', () => {
+            endScreen.classList.add('hidden');
+            startScreen.classList.remove('hidden');
+        });
+
+        submitAnswerBtn.addEventListener('click', handleAnswer);
+        
+        answerInput.addEventListener('keypress', (event) => {
+            if (event.key === 'Enter') {
+                event.preventDefault();
+                submitAnswerBtn.click();
+            }
+        });
+
+        nextBtn.addEventListener('click', () => {
+            currentPlayerIndex++;
+            if (currentPlayerIndex >= players.length) {
+                currentPlayerIndex = 0;
+                currentRound++;
+            }
+
+            if (currentRound > TOTAL_ROUNDS) {
+                endGame();
+            } else {
+                generateAndDisplayCard();
+            }
+        });
+    </script>
+</body>
+</html>
