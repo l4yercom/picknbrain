@@ -83,6 +83,43 @@ Para desarrollo local, el servidor incluye hot reload con `--reload`:
 uvicorn main:app --reload --host 0.0.0.0 --port 8000
 ```
 
+## Despliegue en Railway
+
+### Despliegue Automático
+
+1. **Crear cuenta en Railway:**
+   Ve a [railway.app](https://railway.app) y crea una cuenta
+
+2. **Conectar repositorio:**
+   ```bash
+   # Asegúrate de que tu código esté en GitHub
+   git add .
+   git commit -m "Ready for Railway deployment"
+   git push origin main
+   ```
+
+3. **Desplegar en Railway:**
+   - Ve a Railway dashboard
+   - Click "New Project" → "Deploy from GitHub repo"
+   - Selecciona tu repositorio `picknbrain`
+   - Railway detectará automáticamente la aplicación Python
+
+4. **Configurar variables de entorno:**
+   En Railway dashboard → Variables:
+   ```
+   GEMINI_API_KEY=tu_api_key_de_gemini_aqui
+   ```
+
+5. **Desplegar:**
+   Railway construirá y desplegará automáticamente. La URL será algo como:
+   `https://picknbrain-production.up.railway.app`
+
+### Despliegue del Frontend
+
+Para el frontend completo, puedes:
+- **Opción A:** Usar la URL de Railway directamente (sirve el HTML)
+- **Opción B:** Desplegar frontend en Cloudflare Pages apuntando a Railway
+
 ## Producción
 
 Para producción:
@@ -90,4 +127,3 @@ Para producción:
 - Usar un servidor ASGI como Gunicorn + Uvicorn
 - Configurar HTTPS
 - Limitar CORS a dominios específicos
-# picknbrain
